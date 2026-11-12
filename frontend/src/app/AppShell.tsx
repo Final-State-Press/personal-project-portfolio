@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { backups, describeError } from "@/command-client";
 import { WeekNavigator } from "@/components/navigation/WeekNavigator";
 import { useSidecarHealth } from "@/hooks/useSidecarHealth";
 import { useWorkspace, type WorkspaceView } from "@/state/workspace";
@@ -72,9 +74,32 @@ function ViewSwitch({ view }: { view: WorkspaceView }) {
   }
 }
 
+/** Offered when the database is too damaged to open: put the newest backup in its place. */
+function RestoreLatest() {
+  const restore = useMutation({ mutationFn: () => backups.restoreLatest() });
+  if (restore.isSuccess) {
+    return <strong role="status">Restored. Quit and reopen the app. </strong>;
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="btn"
+        disabled={restore.isPending}
+        onClick={() => {
+          if (window.confirm("Replace the damaged database with your newest backup?")) restore.mutate();
+        }}
+      >
+        Restore the latest backup
+      </button>{" "}
+      {restore.isError && <span>{describeError(restore.error)} </span>}
+    </>
+  );
+}
+
 export function AppShell() {
   const { view, setView } = useWorkspace();
-  const { state, isDegraded } = useSidecarHealth();
+  const { state, isDegraded, failureReason } = useSidecarHealth();
 
   const sidecarCls =
     state === "ready" ? "tag tag-neutral" : state === "failed" ? "tag tag-accent" : "tag tag-outline";
@@ -92,6 +117,8 @@ export function AppShell() {
 
       {isDegraded && (
         <div className="banner" role="alert">
+          {failureReason ? <strong>{failureReason} </strong> : null}
+          {state === "failed" && /damaged/i.test(failureReason ?? "") && <RestoreLatest />}
           The backend is unavailable. Data may be stale and changes are disabled.
           Check the log file in <code>~/.portfolio_manager/logs</code>, then retry.
         </div>
@@ -115,7 +142,11 @@ export function AppShell() {
       <div className="app-body">
         <WeekNavigator />
         <main className="main-view">
-          <ViewSwitch view={view} />
+          {/* Native fieldset semantics disable every button and input inside, which
+              makes the banner's "changes are disabled" true. Reading stays possible. */}
+          <fieldset className="view-fieldset" disabled={isDegraded}>
+            <ViewSwitch view={view} />
+          </fieldset>
         </main>
       </div>
     </div>

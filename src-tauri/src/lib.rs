@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use app_state::AppState;
 use sidecar::launcher::{spawn, SidecarCommand};
+use sidecar::monitor::{self, MonitorConfig};
 use sidecar::readiness::{wait_until_ready, ReadinessOutcome};
 use sidecar::supervisor::{LaunchPlan, SidecarHandle, SidecarState};
 use tauri::Manager;
@@ -50,7 +51,7 @@ const SIDECAR_CANDIDATES: [&str; 4] = [
 /// Resolution order:
 /// 1. `PORTFOLIO_SIDECAR_BINARY` environment override (used in development).
 /// 2. Each entry of [`SIDECAR_CANDIDATES`] beside the current executable.
-fn resolve_sidecar_binary() -> Option<PathBuf> {
+pub(crate) fn resolve_sidecar_binary() -> Option<PathBuf> {
     if let Ok(p) = env::var("PORTFOLIO_SIDECAR_BINARY") {
         let path = PathBuf::from(p);
         if path.exists() {
@@ -65,12 +66,28 @@ fn resolve_sidecar_binary() -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
+/// Bring the running app's window to the front (used when a second launch is attempted).
+fn focus_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.webview_windows().values().next() {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 /// Application entry point invoked from `main`.
 pub fn run() {
     logging::init();
 
     tauri::Builder::default()
+        // Must be registered first. A second launch would start a second sidecar on
+        // the same database (slow, failing saves; two writers on the config file),
+        // so it hands over to the running app and exits instead.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            focus_main_window(app);
+        }))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let http = http::client::build_client();
 
@@ -99,10 +116,24 @@ pub fn run() {
                             let state_arc = app_state.state.clone();
                             let base_url = app_state.base_url();
                             let poll_http = http.clone();
+                            let poll_token = plan.token.clone();
+
+                            // Watch for the sidecar dying or hanging for the life of the app.
+                            tauri::async_runtime::spawn(monitor::run(
+                                handle.clone(),
+                                app_state.state.clone(),
+                                http.clone(),
+                                app_state.base_url(),
+                                plan.token.clone(),
+                                app_state.failure.clone(),
+                                MonitorConfig::default(),
+                            ));
+
                             tauri::async_runtime::spawn(async move {
                                 let outcome = wait_until_ready(
                                     &poll_http,
                                     &base_url,
+                                    &poll_token,
                                     Duration::from_secs(30),
                                     Duration::from_millis(250),
                                 )
@@ -110,6 +141,13 @@ pub fn run() {
                                 let new = match outcome {
                                     ReadinessOutcome::Ready => SidecarState::Ready,
                                     ReadinessOutcome::TimedOut => SidecarState::Failed,
+                                    ReadinessOutcome::IdentityMismatch => {
+                                        tracing::error!(
+                                            "a process on the sidecar port failed the identity check; \
+                                             refusing to use it"
+                                        );
+                                        SidecarState::Failed
+                                    }
                                 };
                                 if let Ok(mut guard) = state_arc.lock() {
                                     *guard = new;
@@ -141,6 +179,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::health::sidecar_health,
             commands::health::sidecar_state,
+            commands::health::sidecar_failure,
             commands::dashboard::dashboard_get,
             commands::projects::projects_list,
             commands::projects::project_get,
@@ -165,9 +204,23 @@ pub fn run() {
             commands::reviews::review_get_or_create,
             commands::reviews::review_save,
             commands::scores::score_override,
+            commands::backups::backups_list,
+            commands::backups::backup_create,
+            commands::backups::backup_restore,
+            commands::backups::backup_export,
+            commands::backups::backup_restore_latest,
             commands::settings::settings_get,
             commands::settings::settings_update,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Portfolio Manager");
+        .build(tauri::generate_context!())
+        .expect("error while building Portfolio Manager")
+        .run(|app, event| {
+            // The window-destroyed hook does not cover every way of quitting (Cmd-Q
+            // with no window, a programmatic exit), so stop the sidecar here too.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(handle) = app.try_state::<Arc<SidecarHandle>>() {
+                    handle.shutdown();
+                }
+            }
+        });
 }

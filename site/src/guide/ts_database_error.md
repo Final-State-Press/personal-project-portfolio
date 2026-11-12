@@ -31,18 +31,25 @@ One or more of the following symptoms occur:
 1.  Check whether a backup exists:
 
     ```
-    ls ~/.portfolio_manager/*.bak
+    ls ~/.portfolio_manager/*.bak ~/.portfolio_manager/backups/
     ```
 
-2.  If a backup file exists, restore it:
+2.  A failed upgrade is rolled back, so your data is normally unchanged and you do not need to restore anything. Relaunch Portfolio Manager. If it fails a second time, check the log file for the specific error and report it to the project repository.
 
-    ```
-    cp ~/.portfolio_manager/portfolio.db.bak ~/.portfolio_manager/portfolio.db
-    ```
+3.  To go back to the copy made just before the upgrade, follow [Back Up and Restore Your Data](t_back_up_and_restore.md) and use the newest `.bak` file.
 
-3.  Relaunch Portfolio Manager.
 
-    The migration runs again. If it fails a second time, check the log file for the specific error and report it to the project repository.
+**The banner says the database is damaged.**
+
+Portfolio Manager checks the database file when it starts. If the check fails, it does not change the file. Restore a backup by following [Back Up and Restore Your Data](t_back_up_and_restore.md).
+
+**The banner says the disk is full or the folder is not writable.**
+
+Free up disk space, or check that `~/.portfolio_manager` is writable, then relaunch.
+
+**The banner says the data was created by a newer version.**
+
+You opened your data with an older copy of Portfolio Manager. Install the latest version. Your data was not changed.
 
 
 **The database file is locked by another process.**

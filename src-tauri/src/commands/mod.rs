@@ -10,6 +10,7 @@
 //! duplicating every Pydantic model in Rust while keeping the command list
 //! explicit.
 
+pub mod backups;
 pub mod dashboard;
 pub mod health;
 pub mod milestones;

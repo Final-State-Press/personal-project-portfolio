@@ -4,6 +4,7 @@ import { settings as api } from "@/command-client";
 import type { Settings } from "@/contracts";
 import { isCommandError, type CommandError } from "@/command-client";
 import { useInvalidate } from "@/hooks/useInvalidate";
+import { BackupsPanel } from "./BackupsPanel";
 
 export function SettingsView() {
   const { afterSettingsMutation } = useInvalidate();
@@ -133,6 +134,8 @@ export function SettingsView() {
           {saveMut.isSuccess && <span role="status">Saved.</span>}
         </div>
       </form>
+
+      <BackupsPanel />
     </section>
   );
 }

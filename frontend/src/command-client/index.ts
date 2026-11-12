@@ -8,5 +8,6 @@ export * as milestones from "./milestones";
 export * as reviews from "./reviews";
 export * as scores from "./scores";
 export * as settings from "./settings";
-export { isCommandError, isSidecarDown, toCommandError } from "./errors";
+export * as backups from "./backups";
+export { describeError, isCommandError, isSidecarDown, toCommandError } from "./errors";
 export type { CommandError, ErrorCode } from "./errors";

@@ -2,7 +2,7 @@
 
 use crate::app_state::AppState;
 use crate::errors::CommandError;
-use crate::http::forwarder;
+use crate::http::{forwarder, params};
 use serde_json::Value;
 use tauri::State;
 
@@ -13,7 +13,7 @@ pub async fn dashboard_get(
     week_key: Option<String>,
 ) -> Result<Value, CommandError> {
     let path = match week_key {
-        Some(wk) => format!("/api/v1/dashboard?week_key={wk}"),
+        Some(wk) => format!("/api/v1/dashboard?week_key={}", params::week_key(&wk)?),
         None => "/api/v1/dashboard".to_string(),
     };
     forwarder::get(&state, &path).await

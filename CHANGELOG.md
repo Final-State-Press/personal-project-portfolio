@@ -8,6 +8,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Data safety
+
+- Upgrades are now atomic: each schema migration commits together with its version
+  record or not at all, so an interrupted or failed upgrade leaves your data at its
+  previous version and the next launch retries. Databases left half-upgraded by older
+  builds repair themselves.
+- Before an upgrade, a consistent, verified snapshot is written to
+  `portfolio.<from>-to-<to>.<time>.bak` (the newest 5 are kept, none is overwritten).
+  This replaces the single `portfolio.db.bak`, which could be empty or stale. If the
+  snapshot cannot be written, the upgrade does not run.
+- Added automatic daily backups (newest 7 kept) in `~/.portfolio_manager/backups`, and
+  a **Back up now** button with a list of backups in Settings. You can restore a backup
+  from the list (applied safely at the next launch, with the replaced data kept aside),
+  export a verified copy to a folder you choose, and, if the database is too damaged to
+  open, restore the newest backup from the error banner.
+- The app checks the database for damage at launch and reports it plainly without
+  changing the file.
+- An older app now refuses a database created by a newer version, and leaves it
+  untouched.
+- A damaged or unreadable `config.toml` is set aside as `config.toml.corrupt-<time>`
+  and defaults are used, instead of the app failing to start. Settings are written
+  atomically and escaped correctly.
+- A full disk, a read-only or damaged database, and disk I/O errors now show a specific
+  message ("Your disk is full, so this change was not saved") instead of "An unexpected
+  error occurred". A full disk at launch shows its own message.
+- SQLite `fullfsync` is enabled so committed data survives a power cut on macOS.
+- The CI workflow now also tests the backend, frontend and Tauri shell from the
+  hash-pinned lockfiles (it previously covered only the legacy Tkinter code).
+- Only one copy of the app runs at a time; opening it again brings the first window
+  forward.
+- The backend now exits when the app is killed or crashes, and is asked to stop with
+  `SIGTERM` (then killed after 2 seconds) so the database is closed cleanly.
+- The "changes are disabled" banner now really disables the controls, and a failed
+  dashboard load shows a readable message instead of "[object Object]".
+
 ### Added
 
 - Added the Tauri/React desktop application as the current app target, replacing
