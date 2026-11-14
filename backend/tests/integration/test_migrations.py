@@ -17,16 +17,23 @@ def test_fresh_database_applies_all_migrations(tmp_path: Path) -> None:
     db.close()
 
 
-def test_backup_created_before_pending_migration(tmp_path: Path) -> None:
+def test_fresh_database_takes_no_backup(tmp_path: Path) -> None:
     path = tmp_path / "portfolio.db"
     db = DatabaseConnection(path)
     run_migrations(db)
     db.close()
-    # Re-run against a fresh connection: no new migrations, no crash.
+    assert list(tmp_path.glob("*.bak")) == []
+
+
+def test_rerun_with_nothing_pending_takes_no_backup(tmp_path: Path) -> None:
+    path = tmp_path / "portfolio.db"
+    db = DatabaseConnection(path)
+    run_migrations(db)
+    db.close()
     db2 = DatabaseConnection(path)
     run_migrations(db2)
     db2.close()
-    assert (tmp_path / "portfolio.db.bak").exists()
+    assert list(tmp_path.glob("*.bak")) == []
 
 
 def test_migrations_are_idempotent(tmp_path: Path) -> None:

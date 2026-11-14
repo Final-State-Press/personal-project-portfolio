@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { dashboard } from "@/command-client";
+import { dashboard, describeError } from "@/command-client";
 import type { Dashboard } from "@/contracts";
 import { StatusIndicator } from "@/components/status/StatusIndicator";
 import { useWorkspace } from "@/state/workspace";
@@ -16,7 +16,7 @@ export function DashboardView() {
   });
 
   if (isLoading) return <p>Loading dashboard…</p>;
-  if (isError) return <p role="alert">Could not load dashboard: {String(error)}</p>;
+  if (isError) return <p role="alert">Could not load dashboard: {describeError(error)}</p>;
   if (!data) return null;
 
   return (

@@ -28,6 +28,21 @@ python -m venv .venv
 .venv/bin/mypy src
 ```
 
+### Durability tests (opt-in)
+
+`pytest` skips the slow real-world durability tests. Run them before a release:
+
+```bash
+python scripts/build_sidecar.py            # needed for the packaged-sidecar test
+.venv/bin/pytest -m durability -s          # about two minutes; prints measurements
+```
+
+They cover a real full disk (a 6 MB macOS disk image, so macOS only), repeated
+`SIGKILL` of a busy writer, a large (about 116 MB) database, copying a live
+database, and the frozen PyInstaller sidecar. Everything runs in temporary
+directories with a temporary `HOME`, so `~/.portfolio_manager` is never touched.
+Migration crash and backup tests run in the normal `pytest` run.
+
 ## Running the sidecar directly
 
 ```bash

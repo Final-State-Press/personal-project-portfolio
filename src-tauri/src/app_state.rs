@@ -5,6 +5,7 @@
 //! supervisor lifecycle state. The token and port are never exposed to the
 //! renderer.
 
+use crate::sidecar::monitor::FailureReason;
 use crate::sidecar::supervisor::SidecarState;
 use secrecy::{ExposeSecret, SecretString};
 use std::sync::{Arc, Mutex};
@@ -15,6 +16,8 @@ pub struct AppState {
     token: SecretString,
     /// Current lifecycle state, mutated by the supervisor.
     pub state: Arc<Mutex<SidecarState>>,
+    /// Plain-language reason for the last failure, when the cause is known.
+    pub failure: FailureReason,
     /// HTTP client reused across forwarded requests.
     pub http: reqwest::Client,
 }
@@ -26,6 +29,7 @@ impl AppState {
             port,
             token: SecretString::new(token),
             state: Arc::new(Mutex::new(SidecarState::Starting)),
+            failure: Arc::default(),
             http,
         }
     }

@@ -22,8 +22,11 @@ from portfolio_manager.application.services.scoring_service import ScoringServic
 from portfolio_manager.application.services.session_service import SessionService
 from portfolio_manager.application.services.settings_service import SettingsService
 from portfolio_manager.infrastructure.config.toml_repository import TomlSettingsRepository
+from portfolio_manager.infrastructure.db.backup import backup_if_due
 from portfolio_manager.infrastructure.db.connection import DatabaseConnection
+from portfolio_manager.infrastructure.db.integrity import check_integrity
 from portfolio_manager.infrastructure.db.migrations import run_migrations
+from portfolio_manager.infrastructure.db.restore import apply_pending_restore
 from portfolio_manager.infrastructure.db.unit_of_work import SqliteUnitOfWork
 from portfolio_manager.infrastructure.system.clock import SystemClock
 
@@ -87,8 +90,12 @@ def build_container(
     resolved_db_path: Path | str
     resolved_db_path = db_path if db_path is not None else settings.database.resolved_path
 
+    if str(resolved_db_path) != ":memory:":
+        apply_pending_restore(resolved_db_path)  # before the database is opened
     db = DatabaseConnection(resolved_db_path)
+    check_integrity(db)
     run_migrations(db)
+    backup_if_due(db)  # daily rolling backup; never blocks startup on failure
 
     uow = SqliteUnitOfWork(db)
     clock = SystemClock()

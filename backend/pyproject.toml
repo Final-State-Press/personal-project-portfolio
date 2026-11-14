@@ -40,7 +40,10 @@ packages = ["src/portfolio_manager"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q -m 'not durability'"
+markers = [
+    "durability: slow real-world durability tests (real full disk via hdiutil, repeated SIGKILL, large databases). Opt in with: pytest -m durability",
+]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
 
@@ -56,6 +59,10 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "SLF"]
 ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Durability tests embed child-process source and wide fixtures.
+"tests/durability/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

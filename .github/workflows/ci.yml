@@ -32,3 +32,71 @@ jobs:
         # tkinter is not available on ubuntu-latest GitHub runners; run only
         # unit and integration tests (no Tk dependency).
         run: pytest tests/unit tests/integration --tb=short -q
+
+  backend:
+    name: Backend (locked deps)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Hash-pinned: CI runs against exactly the audited versions.
+      - name: Install dependencies
+        run: |
+          pip install --require-hashes -r requirements-dev.lock
+          pip install --no-deps -e .
+
+      - name: Lint (ruff)
+        run: ruff check . && ruff format --check .
+
+      # The default run excludes the opt-in durability tests (macOS-only, slow).
+      - name: Run tests
+        run: pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  shell:
+    name: Tauri shell (Rust)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: clippy
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # The Tauri build script needs the built frontend.
+      - run: npm ci
+      - run: npm run build --if-present
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test --locked

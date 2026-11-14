@@ -2,7 +2,7 @@
 
 use crate::app_state::AppState;
 use crate::errors::CommandError;
-use crate::http::forwarder;
+use crate::http::{forwarder, params};
 use reqwest::Method;
 use serde_json::Value;
 use tauri::State;
@@ -14,7 +14,7 @@ pub async fn projects_list(
     status: Option<String>,
 ) -> Result<Value, CommandError> {
     let path = match status {
-        Some(s) => format!("/api/v1/projects?status={s}"),
+        Some(s) => format!("/api/v1/projects?status={}", params::status(&s)?),
         None => "/api/v1/projects".to_string(),
     };
     forwarder::get(&state, &path).await

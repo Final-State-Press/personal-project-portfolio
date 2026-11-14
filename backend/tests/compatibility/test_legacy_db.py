@@ -49,8 +49,12 @@ def test_legacy_v2_database_upgrades_and_preserves_data(tmp_path: Path) -> None:
     db = DatabaseConnection(path)
     run_migrations(db)
 
-    # Backup created before pending migrations.
-    assert (tmp_path / "portfolio.db.bak").exists()
+    # A consistent snapshot of the pre-upgrade database was written, and it still
+    # has the legacy schema and data.
+    (backup,) = tmp_path.glob("portfolio.v2-to-v4.*.bak")
+    snap = sqlite3.connect(backup)
+    assert snap.execute("SELECT focus FROM session WHERE id = 1").fetchone()[0] == "Old focus text"
+    snap.close()
 
     # v3 mapped 'completed' -> 'done' and 'focus' -> 'description'.
     session = db.fetchone("SELECT * FROM session WHERE id = 1")
