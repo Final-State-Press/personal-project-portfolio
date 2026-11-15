@@ -2,7 +2,7 @@
 
 use crate::app_state::AppState;
 use crate::errors::CommandError;
-use crate::http::forwarder;
+use crate::http::{forwarder, params};
 use reqwest::Method;
 use serde_json::Value;
 use tauri::State;
@@ -13,6 +13,7 @@ pub async fn sessions_for_week(
     state: State<'_, AppState>,
     week_key: String,
 ) -> Result<Value, CommandError> {
+    let week_key = params::week_key(&week_key)?;
     forwarder::get(&state, &format!("/api/v1/sessions?week_key={week_key}")).await
 }
 

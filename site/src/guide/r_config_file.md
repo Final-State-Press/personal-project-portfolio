@@ -41,6 +41,8 @@ path = "~/.portfolio_manager/portfolio.db"
 |-----------------|-------|
 |`~/.portfolio_manager/config.toml`|Application configuration.|
 |`~/.portfolio_manager/portfolio.db`|SQLite database containing all projects, sessions, milestones, scores, and reviews.|
-|`~/.portfolio_manager/portfolio.db.bak`|Backup of the database created before schema migrations.|
+|`~/.portfolio_manager/backups/`|Automatic daily and manual backups \(newest 7 kept\).|
+|`~/.portfolio_manager/portfolio.*-to-*.*.bak`|Copy of the database made before a schema upgrade \(newest 5 kept\).|
+|`~/.portfolio_manager/config.toml.corrupt-*`|An unreadable config file that was set aside; defaults were used instead.|
 |`~/.portfolio_manager/logs/`|Application log files \(rotating\).|
 

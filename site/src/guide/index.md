@@ -27,6 +27,8 @@
     -   [Complete the Weekly Review](t_complete_weekly_review.md)
 -   Configuration
     -   [Configure Application Settings](t_configure_settings.md)
+-   Backups
+    -   [Back Up and Restore Your Data](t_back_up_and_restore.md)
 -   Reference
     -   [User Interface Reference](r_ui_reference.md)
     -   [Session Status Values](r_session_states.md)

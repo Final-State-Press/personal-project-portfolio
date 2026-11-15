@@ -18,3 +18,9 @@ pub async fn sidecar_health(state: State<'_, AppState>) -> Result<Value, Command
 pub async fn sidecar_state(state: State<'_, AppState>) -> Result<SidecarState, CommandError> {
     Ok(state.current_state())
 }
+
+/// Why the sidecar failed, in plain language, if the cause is known.
+#[tauri::command]
+pub async fn sidecar_failure(state: State<'_, AppState>) -> Result<Option<String>, CommandError> {
+    Ok(state.failure.lock().ok().and_then(|slot| slot.clone()))
+}

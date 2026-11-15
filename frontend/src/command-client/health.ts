@@ -10,3 +10,8 @@ export function health(): Promise<{ status: string }> {
 export function state(): Promise<SidecarState> {
   return invoke("sidecar_state");
 }
+
+/** Plain-language reason the sidecar failed, or `null` when the cause is unknown. */
+export function failure(): Promise<string | null> {
+  return invoke("sidecar_failure");
+}

@@ -6,7 +6,10 @@ and a request-body size limit is enforced. CORS is intentionally not enabled —
 the only client is the loopback Rust forwarder.
 """
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -17,6 +20,7 @@ from portfolio_manager.api.middleware.authentication import AuthenticationMiddle
 from portfolio_manager.api.middleware.correlation import CorrelationMiddleware
 from portfolio_manager.api.middleware.request_logging import RequestLoggingMiddleware
 from portfolio_manager.api.routes import (
+    backups,
     dashboard,
     health,
     milestones,
@@ -27,8 +31,20 @@ from portfolio_manager.api.routes import (
     settings,
 )
 from portfolio_manager.bootstrap import Container
+from portfolio_manager.infrastructure.db.backup import backup_if_due
 
 logger = logging.getLogger(__name__)
+
+#: How often a running app checks whether a daily backup is due.
+BACKUP_CHECK_SECONDS = 6 * 60 * 60
+
+
+async def _periodic_backups(container: Container) -> None:
+    """Keep a rolling daily backup even if the app stays open for days."""
+    while True:
+        await asyncio.sleep(BACKUP_CHECK_SECONDS)
+        backup_if_due(container.db)
+
 
 #: Maximum accepted request body size (1 MiB); plan documents are text.
 MAX_BODY_BYTES = 1_048_576
@@ -55,7 +71,19 @@ def create_app(container: Container) -> FastAPI:
     :rtype: fastapi.FastAPI
     """
     docs_enabled = not container.production
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        task = asyncio.create_task(_periodic_backups(container))
+        yield
+        task.cancel()
+        # On a graceful stop (SIGTERM from the shell, or the parent-death watchdog),
+        # closing the last connection checkpoints the write-ahead log, so the
+        # database is a single complete file when the app is closed.
+        container.close()
+
     app = FastAPI(
+        lifespan=lifespan,
         title="Portfolio Manager Sidecar",
         version="2.0.0",
         docs_url="/docs" if docs_enabled else None,
@@ -81,6 +109,7 @@ def create_app(container: Container) -> FastAPI:
     app.include_router(reviews.router)
     app.include_router(scores.router)
     app.include_router(settings.router)
+    app.include_router(backups.router)
 
     logger.info("FastAPI app created (production=%s)", container.production)
     return app

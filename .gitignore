@@ -218,3 +218,25 @@ src-tauri/gen/
 src-tauri/target/
 node_modules/.vite/
 node_modules/
+
+_notes/
+.DS_Store
+# Signing assets, credentials and release artifacts: never commit these
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.p8
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+.env.*
+!.env.example
+*.dmg
+*.app.zip
+# Tauri updater signing key (public key goes in tauri.conf.json, never this)
+*.tauri-signing-key
+tauri-signing.key

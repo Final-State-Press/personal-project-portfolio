@@ -6,6 +6,81 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Data safety
+
+- Upgrades are now atomic: each schema migration commits together with its version
+  record or not at all, so an interrupted or failed upgrade leaves your data at its
+  previous version and the next launch retries. Databases left half-upgraded by older
+  builds repair themselves.
+- Before an upgrade, a consistent, verified snapshot is written to
+  `portfolio.<from>-to-<to>.<time>.bak` (the newest 5 are kept, none is overwritten).
+  This replaces the single `portfolio.db.bak`, which could be empty or stale. If the
+  snapshot cannot be written, the upgrade does not run.
+- Added automatic daily backups (newest 7 kept) in `~/.portfolio_manager/backups`, and
+  a **Back up now** button with a list of backups in Settings. You can restore a backup
+  from the list (applied safely at the next launch, with the replaced data kept aside),
+  export a verified copy to a folder you choose, and, if the database is too damaged to
+  open, restore the newest backup from the error banner.
+- The app checks the database for damage at launch and reports it plainly without
+  changing the file.
+- An older app now refuses a database created by a newer version, and leaves it
+  untouched.
+- A damaged or unreadable `config.toml` is set aside as `config.toml.corrupt-<time>`
+  and defaults are used, instead of the app failing to start. Settings are written
+  atomically and escaped correctly.
+- A full disk, a read-only or damaged database, and disk I/O errors now show a specific
+  message ("Your disk is full, so this change was not saved") instead of "An unexpected
+  error occurred". A full disk at launch shows its own message.
+- SQLite `fullfsync` is enabled so committed data survives a power cut on macOS.
+- The CI workflow now also tests the backend, frontend and Tauri shell from the
+  hash-pinned lockfiles (it previously covered only the legacy Tkinter code).
+- Only one copy of the app runs at a time; opening it again brings the first window
+  forward.
+- The backend now exits when the app is killed or crashes, and is asked to stop with
+  `SIGTERM` (then killed after 2 seconds) so the database is closed cleanly.
+- The "changes are disabled" banner now really disables the controls, and a failed
+  dashboard load shows a readable message instead of "[object Object]".
+
+### Added
+
+- Added the Tauri/React desktop application as the current app target, replacing
+  the legacy Tkinter UI path for daily use.
+- Added a modern React interface with dashboard, sessions, projects,
+  milestones, weekly review, settings, tab navigation, and week navigation.
+- Added a README dashboard screenshot using `_design/Portfolio-Manager-Dashboard.png`.
+- Added README badges for the current pre-release status and app stack: macOS,
+  local-first data, time-boxed workflow, Tauri, React, FastAPI, SQLite, Rust,
+  Python, CI, and license.
+- Added a concise explanation of the core loop: choose active projects, set a
+  weekly time budget, define milestones, plan sessions, execute, review, and
+  adjust the portfolio.
+
+### Changed
+
+- Refactored the app from the original Python/Tkinter desktop architecture into
+  a Tauri shell with a React frontend and bundled FastAPI/Python sidecar.
+- Updated the product design from the legacy Tkinter feel to a cleaner,
+  denser, modern desktop UI suited to technical solo-project management.
+- Reframed the README around the GitHub pitch: a single-user desktop app for
+  managing, scheduling, and executing creative and technical work through
+  time-boxed sessions.
+- Clarified that Portfolio Manager is pre-release software and does not yet
+  have a public packaged download.
+- Repositioned the project for systems thinkers, programmers, math-minded
+  planners, and solo builders rather than broad productivity-tool adoption.
+- Documented the repository as both a usable personal app and a macOS
+  release-stack rehearsal for Tauri, React, FastAPI, Python, Rust, SQLite,
+  GitHub Actions, and GitHub Releases.
+
+### Removed
+
+- Removed release/download badge emphasis from the README until a public GitHub
+  release exists.
+
+---
+
 ## [2.1.0] — 2026-04-09
 
 ### Added

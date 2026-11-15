@@ -14,9 +14,19 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from portfolio_manager.domain.errors import DatabaseLockedError
+from portfolio_manager.domain.errors import DatabaseCorruptError, DatabaseLockedError
 
 logger = logging.getLogger(__name__)
+
+#: SQLite messages that mean the file itself is damaged (not full, locked or unwritable).
+CORRUPTION_MARKERS = ("malformed", "not a database", "corrupt")
+
+
+def is_corruption(exc: BaseException) -> bool:
+    """Return ``True`` if *exc* says the database file is damaged."""
+    return isinstance(exc, sqlite3.DatabaseError) and any(
+        m in str(exc).lower() for m in CORRUPTION_MARKERS
+    )
 
 
 class DatabaseConnection:
@@ -52,8 +62,26 @@ class DatabaseConnection:
     def _open(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+        except sqlite3.DatabaseError as exc:
+            conn.close()
+            if is_corruption(exc):  # e.g. a damaged header: "file is not a database"
+                raise DatabaseCorruptError(
+                    f"The database file {self._path} is damaged ({exc}). Nothing was "
+                    "changed. If you have a backup, restore it; backups made before "
+                    "upgrades are the .bak files next to the database."
+                ) from exc
+            raise
+        # Durability settings, stated explicitly rather than left to compile-time
+        # defaults. ``synchronous=FULL`` syncs the WAL on every commit. On macOS a
+        # plain ``fsync`` does not flush the drive's write cache, so a power cut can
+        # still lose or corrupt "committed" data; ``fullfsync`` issues F_FULLFSYNC.
+        # It measured about 4 ms per commit, which is irrelevant for this app.
+        conn.execute("PRAGMA synchronous = FULL")
+        conn.execute("PRAGMA fullfsync = ON")
+        conn.execute("PRAGMA checkpoint_fullfsync = ON")
         return conn
 
     def close(self) -> None:
@@ -74,13 +102,24 @@ class DatabaseConnection:
             yield self._conn
             self._conn.execute("COMMIT")
         except sqlite3.OperationalError as exc:
-            self._conn.execute("ROLLBACK")
+            self._rollback_quietly()
             if "locked" in str(exc).lower():
                 raise DatabaseLockedError("The database is locked by another process.") from exc
             raise
         except Exception:
-            self._conn.execute("ROLLBACK")
+            self._rollback_quietly()
             raise
+
+    def _rollback_quietly(self) -> None:
+        """Roll back if a transaction is still open, never masking the real error.
+
+        SQLite rolls a transaction back by itself on some failures (for example a
+        full disk), after which an explicit ``ROLLBACK`` raises "no transaction is
+        active" and would replace the original error with that confusing one.
+        """
+        if self._conn.in_transaction:
+            with contextlib.suppress(sqlite3.Error):
+                self._conn.execute("ROLLBACK")
 
     def execute(self, sql: str, params: tuple | list = ()) -> sqlite3.Cursor:
         """Execute a single SQL statement.

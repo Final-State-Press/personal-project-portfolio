@@ -31,8 +31,16 @@ class DatabaseLockedError(DatabaseError):
     """Raised when the SQLite database is locked by another connection."""
 
 
+class DatabaseCorruptError(DatabaseError):
+    """Raised when the database file is damaged."""
+
+
 class MigrationError(DatabaseError):
     """Raised when a schema migration cannot be applied."""
+
+
+class NewerDatabaseError(MigrationError):
+    """Raised when the database was created by a newer version of the app."""
 
 
 class NotFoundError(PortfolioManagerError):

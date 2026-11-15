@@ -4,6 +4,7 @@ import { settings as api } from "@/command-client";
 import type { Settings } from "@/contracts";
 import { isCommandError, type CommandError } from "@/command-client";
 import { useInvalidate } from "@/hooks/useInvalidate";
+import { BackupsPanel } from "./BackupsPanel";
 
 export function SettingsView() {
   const { afterSettingsMutation } = useInvalidate();
@@ -53,6 +54,7 @@ export function SettingsView() {
           e.preventDefault();
           saveMut.mutate(draft);
         }}
+        style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", maxWidth: 480 }}
       >
         <div className="field">
           <label htmlFor="set-log">Log level</label>
@@ -112,8 +114,10 @@ export function SettingsView() {
             value={draft.database_path}
             onChange={(e) => setDraft({ ...draft, database_path: e.target.value })}
           />
-          <small>Resolved: {draft.resolved_database_path}</small>
-          <small>Currently active: {draft.active_database_path || "(in-memory)"}</small>
+          <small className="field-hint">Resolved: {draft.resolved_database_path}</small>
+          <small className="field-hint">
+            Currently active: {draft.active_database_path || "(in-memory)"}
+          </small>
         </div>
 
         {restartRequired && (
@@ -123,11 +127,15 @@ export function SettingsView() {
           </p>
         )}
 
-        <button type="submit" className="primary" disabled={saveMut.isPending}>
-          Save settings
-        </button>
-        {saveMut.isSuccess && <span role="status"> Saved.</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button type="submit" className="btn btn-primary" disabled={saveMut.isPending}>
+            Save settings
+          </button>
+          {saveMut.isSuccess && <span role="status">Saved.</span>}
+        </div>
       </form>
+
+      <BackupsPanel />
     </section>
   );
 }

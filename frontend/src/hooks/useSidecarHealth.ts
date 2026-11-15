@@ -24,6 +24,14 @@ export function useSidecarHealth() {
   });
   const state = query.data ?? "starting";
 
+  // Only a failed sidecar has a reason worth asking for.
+  const failureQuery = useQuery<string | null>({
+    queryKey: ["sidecar", "failure"],
+    queryFn: () => health.failure(),
+    enabled: state === "failed",
+    retry: false,
+  });
+
   // Tracks the previous readiness so the refetch fires on the transition into
   // "ready" rather than on every poll, and re-arms if the sidecar drops out.
   const wasReady = useRef(false);
@@ -38,6 +46,7 @@ export function useSidecarHealth() {
   return {
     state,
     isReady: state === "ready",
+    failureReason: state === "failed" ? (failureQuery.data ?? null) : null,
     isDegraded: state === "failed" || state === "degraded" || state === "stopped",
   };
 }

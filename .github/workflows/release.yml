@@ -23,17 +23,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.88.0
 
-      - name: Install backend + PyInstaller
-        run: pip install -e "./backend[dev,package]"
+      # Hash-pinned lockfile (runtime + PyInstaller): the signed build uses exactly the
+      # audited versions. See backend/README.md for how it is regenerated.
+      - name: Install backend dependencies (locked)
+        run: |
+          pip install --require-hashes -r backend/requirements-dev.lock
+          pip install --no-deps -e ./backend
 
       - name: Build sidecar binary
         run: python scripts/build_sidecar.py --target-triple $(rustc -Vv | grep host | cut -d' ' -f2)
 
       - name: Install frontend deps
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       - name: Build Tauri app
         run: npm run tauri build
